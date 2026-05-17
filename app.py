@@ -7,7 +7,7 @@ from rich.table import Table
 from rich.theme import Theme
 
 from db import init_db
-from rag import ask
+from rag import ask_with_memory
 
 # Custom theme
 custom_theme = Theme(
@@ -115,7 +115,7 @@ def main():
 
             # RAG query
             with console.status("[bold blue]Thinking...", spinner="dots"):
-                answer, sources = ask(query)
+                answer, sources = ask_with_memory(query)
 
             console.print()
             console.print(

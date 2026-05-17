@@ -13,6 +13,8 @@ relevant information, say so honestly — do not make up answers.
 
 Always cite which file(s) your answer is based on when possible."""
 
+memory = []
+
 
 def search_similar(query: str, top_k: int = 5) -> list[dict]:
     query_embedding = get_embedding(query)
@@ -81,3 +83,31 @@ def ask(query: str, top_k: int = 5) -> tuple[str, list[dict]]:
 
     answer = response.choices[0].message.content
     return answer, sources
+
+
+def ask_with_memory(query: str, top_k: int = 5) -> tuple[str, list[dict]]:
+    search_results = search_similar(query, top_k=top_k)
+    context = build_context(search_results)
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *memory,
+        {
+            "role": "user",
+            "content": f"Context:\n{context}\n\n---\n\nQuestion: {query}",
+        },
+    ]
+
+    response = client.chat.completions.create(
+        model=Config.LLM_MODEL,
+        messages=messages,
+        temperature=0.3,
+    )
+
+    memory.append({"role": "user", "content": f"Question: {query}"})
+    memory.append({"role": "assistant", "content": response.choices[0].message.content})
+    if len(memory) > 10:
+        memory.pop(0)
+
+    answer = response.choices[0].message.content
+    return answer, search_results
