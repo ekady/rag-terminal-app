@@ -7,7 +7,7 @@ from rich.table import Table
 from rich.theme import Theme
 
 from db import init_db
-from rag import ask_with_memory
+from rag import ask_with_memory_and_streaming
 
 # Custom theme
 custom_theme = Theme(
@@ -114,17 +114,16 @@ def main():
                     continue
 
             # RAG query
-            with console.status("[bold blue]Thinking...", spinner="dots"):
-                answer, sources = ask_with_memory(query)
-
+            answer_parts = []
+            sources = None
+            console.print("[assistant]Assistant >[/assistant] ", end="")
+            for chunk, src in ask_with_memory_and_streaming(query):
+                if chunk:
+                    answer_parts.append(chunk)
+                    print(chunk, end="", flush=True)
+                if src:
+                    sources = src
             console.print()
-            console.print(
-                Panel(
-                    Markdown(answer),
-                    title="[assistant]Assistant[/assistant]",
-                    border_style="blue",
-                )
-            )
 
             if show_sources and sources:
                 console.print()
