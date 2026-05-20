@@ -87,6 +87,12 @@ python indexer.py path/to/documents/ --reset
 python app.py
 ```
 
+### Stage 3: Query via Gradio
+
+```bash
+python -m gradio-ui.app
+```
+
 **Available commands:**
 | Command | Description |
 |---------|-------------|
