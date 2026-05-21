@@ -93,6 +93,14 @@ python app.py
 python -m gradio-ui.app
 ```
 
+## Job Desc Analyzer
+
+```bash
+python -m job-desc-analyzer.app
+```
+
+Application will be available at http://127.0.0.1:7860 after running the command.
+
 **Available commands:**
 | Command | Description |
 |---------|-------------|
