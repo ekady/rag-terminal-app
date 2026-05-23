@@ -12,6 +12,9 @@ load_dotenv()
 class Config:
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
 
     # PostgreSQL
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
@@ -26,6 +29,10 @@ class Config:
 
     # LLM
     LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
 
     # Chunking
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "128"))
