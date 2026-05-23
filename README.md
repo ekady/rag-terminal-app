@@ -99,6 +99,13 @@ python -m gradio-ui.app
 python -m job-desc-analyzer.app
 ```
 
+## Multi-Model LLM Conversation
+
+```bash
+python -m multi-model.app
+```
+
+
 Application will be available at http://127.0.0.1:7860 after running the command.
 
 **Available commands:**
