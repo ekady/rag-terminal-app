@@ -92,12 +92,15 @@ python app.py
 ```bash
 python -m gradio-ui.app
 ```
+Application will be available at http://127.0.0.1:7860 after running the command.
 
 ## Job Desc Analyzer
 
 ```bash
 python -m job-desc-analyzer.app
 ```
+Application will be available at http://127.0.0.1:7860 after running the command.
+
 
 ## Multi-Model LLM Conversation
 
@@ -105,6 +108,15 @@ python -m job-desc-analyzer.app
 python -m multi-model.app
 ```
 
+## Language Buddy
+
+This app uses **few-shot prompting** to guide the LLM to act as a language tutor for Bahasa Indonesia. The tutor will correct your grammar mistakes and provide alternative ways of saying things with explanations and follow-up questions. Instead of just describing the task, it provides several input/output examples directly in the prompt. This helps the model understand the desired format and style more effectively.
+
+### Running the App
+
+```bash
+python -m language_buddy.app
+```
 
 Application will be available at http://127.0.0.1:7860 after running the command.
 
