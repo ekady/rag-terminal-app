@@ -120,6 +120,12 @@ python -m language_buddy.app
 
 Application will be available at http://127.0.0.1:7860 after running the command.
 
+## Airline Assistant
+
+```bash
+python -m airline_assistant.app
+```
+
 **Available commands:**
 | Command | Description |
 |---------|-------------|
