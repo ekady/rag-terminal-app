@@ -9,7 +9,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from db import get_connection, init_db, reset_db
-from embeddings import chunk_text, get_embeddings_batch
+from embeddings import get_embeddings_batch
+from chunking import chunk_text, STRATEGIES
 
 console = Console()
 
@@ -79,12 +80,12 @@ def collect_files(path: str) -> list[str]:
     return files
 
 
-def index_file(filepath: str, conn) -> int:
+def index_file(filepath: str, conn, strategy: str = "recursive") -> int:
     content = read_file(filepath)
     if not content or not content.strip():
         return 0
 
-    chunks = chunk_text(content)
+    chunks = chunk_text(content, strategy=strategy)
     if not chunks:
         return 0
 
@@ -109,7 +110,7 @@ def index_file(filepath: str, conn) -> int:
     return len(chunks)
 
 
-def run_indexer(path: str, do_reset: bool = False):
+def run_indexer(path: str, do_reset: bool = False, strategy: str = "recursive"):
     console.print(Panel("📂 [bold]RAG File Indexer[/bold]", style="blue"))
 
     if do_reset:
@@ -143,7 +144,7 @@ def run_indexer(path: str, do_reset: bool = False):
         for filepath in files:
             filename = os.path.basename(filepath)
             progress.update(task, description=f"Indexing {filename}...")
-            chunks = index_file(filepath, conn)
+            chunks = index_file(filepath, conn, strategy=strategy)
             total_chunks += chunks
             results.append((filename, chunks))
             progress.advance(task)
@@ -166,10 +167,22 @@ def run_indexer(path: str, do_reset: bool = False):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        console.print("[red]Usage: python indexer.py <path> [--reset][/red]")
+        console.print(
+            "[red]Usage: python indexer.py <path> [--reset] [--chunking <strategy>][/red]"
+        )
+        console.print(f"[dim]Strategies: {', '.join(STRATEGIES.keys())}[/dim]")
         sys.exit(1)
 
     target_path = sys.argv[1]
     should_reset = "--reset" in sys.argv
 
-    run_indexer(target_path, should_reset)
+    chunking_strategy = "recursive"
+    if "--chunking" in sys.argv:
+        idx = sys.argv.index("--chunking")
+        if idx + 1 < len(sys.argv):
+            chunking_strategy = sys.argv[idx + 1]
+        else:
+            console.print("[red]--chunking requires a strategy name[/red]")
+            sys.exit(1)
+
+    run_indexer(target_path, should_reset, chunking_strategy)
