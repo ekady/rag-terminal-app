@@ -14,7 +14,8 @@ user query       →    app.py    →  similarity search → LLM → answer
 |------|---------|
 | `config.py` | Configuration management (loads `.env`) |
 | `db.py` | Database connection, schema setup |
-| `embeddings.py` | Text chunking and embedding generation |
+| `chunking.py` | Text chunking strategies (fixed, sentence, recursive, semantic) |
+| `embeddings.py` | Embedding generation |
 | `indexer.py` | **Stage 1** — File indexing pipeline |
 | `rag.py` | RAG retrieval and LLM query |
 | `app.py` | **Stage 2** — Interactive terminal app |
@@ -71,15 +72,30 @@ psql rag_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ### Stage 1: Index Files
 
 ```bash
-# Index a single file
+# Index a single file (default: recursive strategy)
 python indexer.py path/to/file.txt
 
-# Index an entire directory (recursively)
-python indexer.py path/to/documents/
+# Index with a specific chunking strategy
+python indexer.py path/to/documents/ --chunking fixed
+python indexer.py path/to/documents/ --chunking sentence
+python indexer.py path/to/documents/ --chunking recursive
+python indexer.py path/to/documents/ --chunking semantic
 
 # Reset database and re-index
 python indexer.py path/to/documents/ --reset
+
+# Combine options
+python indexer.py path/to/documents/ --chunking fixed --reset
 ```
+
+**Chunking Strategies:**
+
+| Strategy | Description |
+|----------|-------------|
+| `fixed` | Fixed-size with overlap (character-based) |
+| `sentence` | Sentence-based using NLTK |
+| `recursive` | Recursive character splitting (default) |
+| `semantic` | Paragraph/sentence-aware splitting |
 
 ### Stage 2: Query via Terminal
 
@@ -151,5 +167,5 @@ All settings are managed via `.env`:
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
 | `EMBEDDING_DIMENSIONS` | `1536` | Embedding vector size |
 | `LLM_MODEL` | `gpt-4o-mini` | OpenAI chat model |
-| `CHUNK_SIZE` | `500` | Characters per chunk |
-| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
+| `CHUNK_SIZE` | `500` | Chunk size (characters for fixed/recursive/semantic, tokens for sentence) |
+| `CHUNK_OVERLAP` | `50` | Overlap between chunks (fixed/recursive/semantic) |
