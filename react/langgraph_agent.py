@@ -1,3 +1,4 @@
+import time
 import sys
 from pathlib import Path
 import re
@@ -6,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Optional
 from langchain_core.tools import tool
 from langchain_core.messages import ToolMessage
 from langchain_core.messages.ai import AIMessage
@@ -17,6 +18,8 @@ from langgraph.graph.message import add_messages
 from config import Config
 
 RELEVANCE_THRESHOLD = 0.65
+MAX_RETRIES = 2
+RETRY_BACKOFF_SECONDS = 1.5
 
 
 @tool
@@ -129,6 +132,100 @@ def run_web_search_fallback(state: AgentState):
     return {"messages": [note]}
 
 
+def run_web_search_with_retry(state: AgentState):
+    """Wraps the tool call with retry + graceful degradation."""
+    last_message = state["messages"][-1]
+    tool_call = last_message.tool_calls[0]
+    query = tool_call["args"]["query"]
+
+    last_error: Optional[Exception] = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            result = web_search.invoke({"query": query})
+            return {
+                "messages": [
+                    ToolMessage(
+                        content=result,
+                        tool_call_id=tool_call["id"],
+                    )
+                ]
+            }
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_BACKOFF_SECONDS * attempt)  # exponential-ish backoff
+                continue
+
+    # ── Graceful degradation — all retries exhausted ──────────────────────
+    # CRITICAL: we still return a ToolMessage, even on failure.
+    # If we don't, the LLM's next call breaks (it expects a tool
+    # response matching every tool_call_id it issued).
+    degraded_message = (
+        f"[Tool 'web_search' failed after {MAX_RETRIES} attempts: "
+        f"{type(last_error).__name__}. Proceeding without this "
+        f"information — flag this to the user if it's essential "
+        f"to answering accurately.]"
+    )
+    return {
+        "messages": [
+            ToolMessage(
+                content=degraded_message,
+                tool_call_id=tool_call["id"],
+            )
+        ]
+    }
+
+
+def route_after_tool_decision_with_circuit_breaker(state: AgentState) -> str:
+    """Add a circuit breaker: if we've already failed twice in this
+    conversation, stop trying tools and let the LLM answer from
+    its own knowledge with a caveat."""
+    failure_count = sum(
+        1
+        for m in state["messages"]
+        if isinstance(m, ToolMessage) and "failed after" in m.content
+    )
+    if failure_count >= 2:
+        return END  # let the agent's last message stand as final
+
+    last_message = state["messages"][-1]
+    if not last_message.tool_calls:
+        return END
+    tool_name = last_message.tool_calls[0]["name"]
+    return "retriever" if tool_name == "document_retriever" else "web_search"
+
+
+def with_retry_and_fallback(tool_fn, max_retries=2):
+    """Generic decorator-style wrapper — apply to any tool node."""
+
+    def wrapped_node(state: AgentState):
+        last_message = state["messages"][-1]
+        tool_call = last_message.tool_calls[0]
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                result = tool_fn.invoke(tool_call["args"])
+                return {
+                    "messages": [
+                        ToolMessage(content=result, tool_call_id=tool_call["id"])
+                    ]
+                }
+            except Exception as e:
+                if attempt == max_retries:
+                    return {
+                        "messages": [
+                            ToolMessage(
+                                content=f"[{tool_fn.name} unavailable: {e}]",
+                                tool_call_id=tool_call["id"],
+                            )
+                        ]
+                    }
+                time.sleep(1.5 * attempt)
+
+    return wrapped_node
+
+
 # Execute whichever tools was chosen
 tool_node = ToolNode(tools)
 
@@ -143,8 +240,8 @@ def should_continue(state: AgentState) -> str:
 # Build the graph
 graph = StateGraph(AgentState)
 graph.add_node("agent", call_model)
-graph.add_node("retriever", run_retriever)
-graph.add_node("web_search", run_web_search)
+graph.add_node("web_search", with_retry_and_fallback(web_search))
+graph.add_node("retriever", with_retry_and_fallback(document_retriever))
 graph.add_node("web_search_fallback", run_web_search_fallback)
 
 graph.set_entry_point("agent")
@@ -170,7 +267,7 @@ if __name__ == "__main__":
         {
             "messages": [
                 HumanMessage(
-                    content="What is the latest AWS pricing for EC2 t3.medium instances?"
+                    content="What is the the right exercise for ITBS (Iliotibial Band Syndrome)?"
                 )
             ]
         }
